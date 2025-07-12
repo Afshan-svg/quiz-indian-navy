@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,67 +6,101 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Clock, ChevronRight, BookOpen, Target, Brain } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Question {
-  id: string;
+  _id: string;
   question: string;
   options: string[];
   correctAnswer: number;
+  location: { _id: string; location: string };
+  month: string;
+  year: number;
 }
 
 interface QuizInterfaceProps {
   quizId: string;
-  onQuizComplete: (score: number, answers: number[]) => void;
+  onQuizComplete: (score: number, answers: number[], totalQuestions: number) => void;
 }
 
 const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
+  const { toast } = useToast();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes in seconds
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const questions: Question[] = [
-    {
-      id: '1',
-      question: 'Which is the capital of India?',
-      options: ['Mumbai', 'New Delhi', 'Kolkata', 'Chennai'],
-      correctAnswer: 1
-    },
-    {
-      id: '2',
-      question: 'What is the national bird of India?',
-      options: ['Eagle', 'Peacock', 'Sparrow', 'Pigeon'],
-      correctAnswer: 1
-    },
-    {
-      id: '3',
-      question: 'Which river is considered sacred in Hinduism?',
-      options: ['Yamuna', 'Godavari', 'Ganges', 'Narmada'],
-      correctAnswer: 2
-    },
-    {
-      id: '4',
-      question: 'In which year did India gain independence?',
-      options: ['1945', '1947', '1948', '1950'],
-      correctAnswer: 1
-    },
-    {
-      id: '5',
-      question: 'Which is the largest state in India by area?',
-      options: ['Maharashtra', 'Uttar Pradesh', 'Rajasthan', 'Madhya Pradesh'],
-      correctAnswer: 2
-    }
-  ];
+  // Get selected location from localStorage
+  const selectedLocation = localStorage.getItem('selectedLocation') || 'Goa';
+  const currentDate = new Date();
+  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+  const currentYear = currentDate.getFullYear();
 
-  // Timer effect
+  // Fetch locations to get Goa's _id
+  const { data: locations = [], isLoading: isLocationsLoading, error: locationsError } = useQuery({
+    queryKey: ['locations'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/locations', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch locations');
+      return response.json();
+    },
+  });
+
+  // Find location ID
+  const locationObj = locations.find((loc: { id: string; location: string }) => 
+    loc.location.toLowerCase() === selectedLocation.toLowerCase()
+  );
+  const locationId = locationObj?.id;
+
+  // Fetch questions
+  const { data: questions = [], isLoading: isQuestionsLoading, error: questionsError } = useQuery({
+    queryKey: ['questions', locationId, currentMonth, currentYear],
+    queryFn: async () => {
+      if (!locationId) return [];
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        `http://localhost:5000/api/questions?location=${locationId}&month=${currentMonth}&year=${currentYear}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error('Failed to fetch questions');
+      return response.json();
+    },
+    enabled: !!locationId,
+  });
+
   useEffect(() => {
-    if (timeLeft > 0) {
+    if (timeLeft > 0 && !isSubmitting) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else {
+    } else if (timeLeft === 0 && !isSubmitting && questions.length > 0) {
+      // Auto-submit when time runs out
       handleSubmitQuiz();
     }
-  }, [timeLeft]);
+  }, [timeLeft, isSubmitting, questions.length]);
+
+  useEffect(() => {
+    if (locationsError) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load locations',
+        variant: 'destructive',
+      });
+    }
+    if (questionsError) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load quiz questions',
+        variant: 'destructive',
+      });
+    }
+  }, [locationsError, questionsError, toast]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -75,36 +108,144 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const saveScore = async (score: number) => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await fetch('http://localhost:5000/api/quiz/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          score,
+          month: currentMonth,
+          year: currentYear,
+          location: locationId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Save score error:', data);
+        throw new Error(data.error || 'Failed to save score');
+      }
+
+      console.log('Score saved successfully:', data);
+      toast({
+        title: 'Score Saved',
+        description: `Your score of ${score}% has been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving score:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save score',
+        variant: 'destructive',
+      });
+      throw error; // Re-throw to handle in handleSubmitQuiz
+    }
+  };
+
   const handleNextQuestion = () => {
     if (selectedOption !== null) {
+      // Save the current answer
       const newAnswers = [...selectedAnswers];
       newAnswers[currentQuestion] = selectedOption;
       setSelectedAnswers(newAnswers);
-      
+
       if (currentQuestion < questions.length - 1) {
+        // Move to next question
         setCurrentQuestion(currentQuestion + 1);
+        // Load previously selected answer for next question if exists
         setSelectedOption(newAnswers[currentQuestion + 1] ?? null);
       } else {
+        // Last question - submit quiz
         handleSubmitQuiz(newAnswers);
       }
     }
   };
 
-  const handleSubmitQuiz = (answers = selectedAnswers) => {
-    const correctAnswers = answers.filter((answer, index) => 
-      answer === questions[index]?.correctAnswer
-    ).length;
-    const score = Math.round((correctAnswers / questions.length) * 100);
-    onQuizComplete(score, answers);
+  const handleSubmitQuiz = async (finalAnswers?: number[]) => {
+    if (isSubmitting || questions.length === 0) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Use provided answers or build final answers array
+      let answersToSubmit = finalAnswers || [...selectedAnswers];
+      
+      // If we don't have finalAnswers and current question has a selected option, include it
+      if (!finalAnswers && selectedOption !== null && answersToSubmit[currentQuestion] === undefined) {
+        answersToSubmit[currentQuestion] = selectedOption;
+      }
+
+      console.log('Submitting answers:', answersToSubmit);
+      console.log('Questions:', questions.map(q => ({ question: q.question, correctAnswer: q.correctAnswer })));
+
+      // Calculate score
+      let correctCount = 0;
+      answersToSubmit.forEach((answer, index) => {
+        if (answer !== undefined && questions[index] && answer === questions[index].correctAnswer) {
+          correctCount++;
+        }
+      });
+
+      const score = Math.round((correctCount / questions.length) * 100);
+      
+      console.log(`Correct answers: ${correctCount}/${questions.length}, Score: ${score}%`);
+
+      // Save score to backend
+      await saveScore(score);
+      
+      // Navigate to results
+      onQuizComplete(score, answersToSubmit, questions.length);
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      setIsSubmitting(false);
+      toast({
+        title: 'Error',
+        description: 'Failed to submit quiz. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentQuestion + 1) / questions.length) * 100 : 0;
   const timeColor = timeLeft < 300 ? 'text-red-600 bg-red-50 border-red-200' : 'text-orange-600 bg-orange-50 border-orange-200';
+
+  if (isLocationsLoading || isQuestionsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <Card className="p-8">
+          <CardContent>
+            <p className="text-lg text-gray-600">
+              No questions available for {selectedLocation} in {currentMonth} {currentYear}.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentQ = questions[currentQuestion];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
       <div className="max-w-5xl mx-auto">
-        {/* Enhanced Header */}
+        {/* Header */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 mb-8">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6">
             <div className="flex items-center space-x-4 mb-4 lg:mb-0">
@@ -113,7 +254,7 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  Quiz Assessment
+                  {selectedLocation} Quiz - {currentMonth} {currentYear}
                 </h1>
                 <div className="flex items-center space-x-3 mt-1">
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
@@ -127,28 +268,21 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
                 </div>
               </div>
             </div>
-            
             <div className={`flex items-center px-6 py-3 rounded-xl border-2 ${timeColor} font-mono text-xl font-bold shadow-lg`}>
               <Clock className="h-6 w-6 mr-3" />
               <span>{formatTime(timeLeft)}</span>
             </div>
           </div>
-          
           <div className="space-y-3">
             <div className="flex justify-between text-sm text-slate-600">
               <span>Progress</span>
               <span>{Math.round(progress)}% Complete</span>
             </div>
             <Progress value={progress} className="h-3 bg-slate-100" />
-            <div className="flex justify-between text-xs text-slate-500">
-              <span>Started</span>
-              <span>In Progress</span>
-              <span>Complete</span>
-            </div>
           </div>
         </div>
 
-        {/* Enhanced Question Card */}
+        {/* Question Card */}
         <Card className="shadow-2xl border border-slate-200 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
             <div className="flex items-start space-x-4">
@@ -157,20 +291,19 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
               </div>
               <div className="flex-1">
                 <CardTitle className="text-xl text-slate-800 leading-relaxed">
-                  {questions[currentQuestion]?.question}
+                  {currentQ?.question}
                 </CardTitle>
                 <p className="text-sm text-slate-500 mt-2">Select the most appropriate answer</p>
               </div>
             </div>
           </CardHeader>
-          
           <CardContent className="p-8">
             <RadioGroup
-              value={selectedOption?.toString()}
+              value={selectedOption?.toString() || ''}
               onValueChange={(value) => setSelectedOption(parseInt(value))}
               className="space-y-4"
             >
-              {questions[currentQuestion]?.options.map((option, index) => (
+              {currentQ?.options.map((option, index) => (
                 <div
                   key={index}
                   className={`group relative flex items-center space-x-4 p-5 rounded-xl border-2 transition-all duration-200 cursor-pointer hover:shadow-lg ${
@@ -179,12 +312,12 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
                       : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <RadioGroupItem 
-                    value={index.toString()} 
+                  <RadioGroupItem
+                    value={index.toString()}
                     id={`option-${index}`}
                     className="w-5 h-5 border-2"
                   />
-                  <Label 
+                  <Label
                     htmlFor={`option-${index}`}
                     className="flex-1 cursor-pointer text-base font-medium text-slate-700 leading-relaxed group-hover:text-slate-900"
                   >
@@ -195,13 +328,6 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
                       {option}
                     </span>
                   </Label>
-                  {selectedOption === index && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <div className="w-6 h-6 bg-indigo-500 rounded-full flex items-center justify-center">
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               ))}
             </RadioGroup>
@@ -212,24 +338,32 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
                   {selectedOption !== null ? 'Answer selected' : 'Please select an answer to continue'}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Question {currentQuestion + 1} of {questions.length}
+                  Answered: {selectedAnswers.filter(a => a !== undefined).length} of {questions.length}
                 </p>
               </div>
-              
               <Button
                 onClick={handleNextQuestion}
-                disabled={selectedOption === null}
+                disabled={selectedOption === null || isSubmitting}
                 size="lg"
                 className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-8 py-3 text-lg font-semibold rounded-xl shadow-lg transition-all duration-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {currentQuestion === questions.length - 1 ? 'Submit Quiz' : 'Next Question'}
-                <ChevronRight className="h-5 w-5 ml-2" />
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    {currentQuestion === questions.length - 1 ? 'Submit Quiz' : 'Next Question'}
+                    <ChevronRight className="h-5 w-5 ml-2" />
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Question Navigation Dots */}
+        {/* Progress dots */}
         <div className="flex justify-center mt-8">
           <div className="flex space-x-2 bg-white rounded-full p-3 shadow-lg border border-slate-200">
             {questions.map((_, index) => (
@@ -238,7 +372,7 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
                 className={`w-3 h-3 rounded-full transition-all duration-200 ${
                   index === currentQuestion
                     ? 'bg-indigo-500 scale-125'
-                    : index < currentQuestion
+                    : selectedAnswers[index] !== undefined
                     ? 'bg-green-400'
                     : 'bg-slate-300'
                 }`}

@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,19 +12,66 @@ interface QuizResultsProps {
   onDownloadCertificate: () => void;
   onReturnHome: () => void;
   userEmail: string;
+  quizId: string;
 }
 
-const QuizResults = ({ 
-  score, 
-  totalQuestions, 
-  userAnswers, 
-  onDownloadCertificate, 
+const QuizResults = ({
+  score: initialScore,
+  totalQuestions,
+  userAnswers,
+  onDownloadCertificate,
   onReturnHome,
-  userEmail 
+  userEmail,
+  quizId,
 }: QuizResultsProps) => {
-  const correctAnswers = Math.round((score / 100) * totalQuestions);
-  const incorrectAnswers = totalQuestions - correctAnswers;
-  
+console.log("total questions:", totalQuestions);
+  const [score, setScore] = useState(initialScore);
+  const [isLoading, setIsLoading] = useState(true);
+  const [savedScoreData, setSavedScoreData] = useState<any>(null);
+
+  useEffect(() => {
+    console.log('QuizResults userAnswers:', userAnswers, 'Length:', userAnswers.length);
+    fetchLatestScore();
+  }, []);
+
+  const fetchLatestScore = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+
+      const response = await fetch(
+        `http://localhost:5000/api/quiz/scores?year=${currentYear}&month=${currentMonth}&quizId=${quizId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+      console.log('response', response);
+
+      if (response.ok) {
+        const scores = await response.json();
+        if (scores.length > 0) {
+          const latestScore = scores[0];
+          setScore(latestScore.score);
+          setSavedScoreData(latestScore);
+        }
+      } else if (response.status === 401) {
+        console.error('Authentication failed');
+      }
+    } catch (error) {
+      console.error('Error fetching score:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const actualTotalQuestions = totalQuestions; // Use totalQuestions directly
+  const correctAnswers = Math.round((score / 100) * actualTotalQuestions);
+  const incorrectAnswers = actualTotalQuestions - correctAnswers;
+
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-emerald-600';
     if (score >= 60) return 'text-amber-600';
@@ -44,25 +90,35 @@ const QuizResults = ({
 
   const handleCertificateDownload = () => {
     const certificateData: CertificateData = {
-      name: userEmail.split('@')[0],
+      name: userEmail.split('@')[0] || 'Guest',
       score: score,
       date: new Date().toLocaleDateString('en-IN', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
       }),
-      location: 'India Quiz Platform',
-      quizTitle: `${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Assessment`
+      location: savedScoreData?.location?.location || 'India Quiz Platform',
+      quizTitle: `${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Assessment`,
     };
-    
+
     generateCertificate(certificateData);
     onDownloadCertificate();
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your results...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-100 p-4">
       <div className="max-w-5xl mx-auto">
-        {/* Main Results Card */}
         <Card className="shadow-2xl border border-slate-200 mb-8 overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200 pb-8">
             <div className="text-center">
@@ -78,7 +134,6 @@ const QuizResults = ({
               </Badge>
             </div>
           </CardHeader>
-
           <CardContent className="p-8">
             <div className="text-center mb-10">
               <div className={`text-7xl font-bold mb-6 ${getScoreColor(score)} drop-shadow-sm`}>
@@ -89,12 +144,10 @@ const QuizResults = ({
                   Your Final Score
                 </p>
                 <p className="text-lg text-slate-500">
-                  You answered {correctAnswers} out of {totalQuestions} questions correctly
+                  You answered {correctAnswers} out of {actualTotalQuestions} questions correctly
                 </p>
               </div>
             </div>
-
-            {/* Enhanced Score Breakdown */}
             <div className="grid md:grid-cols-2 gap-6 mb-10">
               <div className="bg-gradient-to-r from-emerald-50 to-green-50 p-8 rounded-2xl border-2 border-emerald-200 shadow-lg">
                 <div className="flex items-center justify-between">
@@ -108,7 +161,6 @@ const QuizResults = ({
                   </div>
                 </div>
               </div>
-
               <div className="bg-gradient-to-r from-red-50 to-rose-50 p-8 rounded-2xl border-2 border-red-200 shadow-lg">
                 <div className="flex items-center justify-between">
                   <div>
@@ -122,8 +174,6 @@ const QuizResults = ({
                 </div>
               </div>
             </div>
-
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={handleCertificateDownload}
@@ -133,7 +183,6 @@ const QuizResults = ({
                 <Download className="h-5 w-5 mr-3" />
                 Download Certificate
               </Button>
-              
               <Button
                 onClick={onReturnHome}
                 variant="outline"
@@ -146,8 +195,6 @@ const QuizResults = ({
             </div>
           </CardContent>
         </Card>
-
-        {/* Enhanced Performance Insights */}
         <Card className="shadow-xl border border-slate-200">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
             <CardTitle className="text-2xl text-slate-800 flex items-center">
@@ -161,12 +208,11 @@ const QuizResults = ({
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-bold text-blue-800">Participant</span>
                   <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm font-bold">U</span>
+                    <span className="text-white text-sm font-bold">{userEmail.charAt(0).toUpperCase()}</span>
                   </div>
                 </div>
                 <p className="text-blue-600 font-medium">{userEmail}</p>
               </div>
-              
               <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-bold text-purple-800">Quiz Date</span>
@@ -174,19 +220,30 @@ const QuizResults = ({
                     <span className="text-white text-sm font-bold">📅</span>
                   </div>
                 </div>
-                <p className="text-purple-600 font-medium">{new Date().toLocaleDateString('en-IN')}</p>
+                <p className="text-purple-600 font-medium">
+                  {savedScoreData?.createdAt
+                    ? new Date(savedScoreData.createdAt).toLocaleDateString('en-IN')
+                    : new Date().toLocaleDateString('en-IN')
+                  }
+                </p>
               </div>
-              
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-bold text-green-800">Status</span>
-                  <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                  <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
                     <CheckCircle className="h-4 w-4 text-white" />
                   </div>
                 </div>
-                <p className="text-green-600 font-medium">Completed Successfully</p>
+                <p className="text-green-600 font-medium">
+                  {savedScoreData ? 'Score Saved' : 'Completed Successfully'}
+                </p>
               </div>
             </div>
+            {savedScoreData && (
+              <div className="mt-4 text-center text-sm text-gray-500">
+                Score saved on: {new Date(savedScoreData.createdAt).toLocaleString('en-IN')}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

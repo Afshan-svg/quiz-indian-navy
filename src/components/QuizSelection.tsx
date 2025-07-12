@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Calendar, Lock, CheckCircle, Trophy, Target, Flame, TrendingUp, Star, Award, BookOpen, Clock } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Quiz {
   id: string;
@@ -24,9 +25,30 @@ interface QuizSelectionProps {
 }
 
 const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEmail }: QuizSelectionProps) => {
+  const { toast } = useToast();
   const currentDate = new Date();
   const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
   const currentYear = currentDate.getFullYear();
+
+  const { data: scores = [], isLoading, error } = useQuery({
+    queryKey: ['scores'],
+    queryFn: async () => {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/quiz/scores', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch scores');
+      return response.json();
+    },
+  });
+
+  if (error) {
+    toast({
+      title: 'Error',
+      description: 'Failed to load quiz scores',
+      variant: 'destructive',
+    });
+  }
 
   const quizzes: Quiz[] = [
     {
@@ -35,36 +57,26 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
       year: currentYear,
       isCurrent: true,
       isCompleted: false,
-      totalQuestions: 10
+      totalQuestions: 5,
     },
-    {
-      id: 'nov2024',
-      month: 'November',
-      year: 2024,
+    ...scores.map((score: any) => ({
+      id: `${score.month.toLowerCase()}${score.year}`,
+      month: score.month,
+      year: score.year,
       isCurrent: false,
       isCompleted: true,
-      score: 85,
-      totalQuestions: 10
-    },
-    {
-      id: 'oct2024',
-      month: 'October',
-      year: 2024,
-      isCurrent: false,
-      isCompleted: true,
-      score: 92,
-      totalQuestions: 10
-    }
+      score: score.score,
+      totalQuestions: 5,
+    })),
   ];
 
-  // Calculate user stats
   const completedQuizzes = quizzes.filter(q => q.isCompleted);
-  const averageScore = completedQuizzes.length > 0 
+  const averageScore = completedQuizzes.length > 0
     ? Math.round(completedQuizzes.reduce((sum, q) => sum + (q.score || 0), 0) / completedQuizzes.length)
     : 0;
   const totalQuizzes = quizzes.length;
-  const currentStreak = 7; // Mock data
-  const bestScore = Math.max(...completedQuizzes.map(q => q.score || 0));
+  const currentStreak = 2; // Mock for now
+  const bestScore = Math.max(...completedQuizzes.map(q => q.score || 0), 0);
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'bg-emerald-500';
@@ -83,19 +95,18 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Enhanced Header */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center">
             <div className="mb-4 lg:mb-0">
               <h1 className="text-3xl font-bold text-navy-800 mb-2">
-                Welcome back, {userEmail.split('@')[0]}! 👋
+                Welcome back, {userEmail.split('@')[0] || 'Guest'}! 👋
               </h1>
               <div className="flex items-center space-x-4 text-gray-600">
                 <span className="capitalize">📍 {selectedLocation}</span>
                 <span>•</span>
                 <span className="flex items-center">
                   <Flame className="h-4 w-4 mr-1 text-orange-500" />
-                  {/* {currentStreak} day streak */}
+                  {currentStreak} day streak
                 </span>
               </div>
             </div>
@@ -110,13 +121,13 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
           </div>
         </div>
 
-        {/* Quick Stats Dashboard */}
+        {isLoading && <p>Loading scores...</p>}
+
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-navy-800 mb-4 flex items-center">
             <TrendingUp className="h-6 w-6 mr-2 text-blue-500" />
             Your Performance
           </h2>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
               <CardContent className="p-6">
@@ -132,7 +143,6 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
                 <Progress value={averageScore} className="mt-3" />
               </CardContent>
             </Card>
-
             <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -147,14 +157,13 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
                 <Progress value={(completedQuizzes.length / totalQuizzes) * 100} className="mt-3" />
               </CardContent>
             </Card>
-
             <Card className="bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-orange-600 mb-1">Study Streak</p>
+                    <p className="text-sm font-medium text-orange-600 mb-1">Study Streak</p> 
                     <p className="text-3xl font-bold text-orange-700">{currentStreak}</p>
-                  </div>
+                  </div> 
                   <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center">
                     <Flame className="h-6 w-6 text-white" />
                   </div>
@@ -162,7 +171,6 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
                 <p className="text-xs text-orange-600 mt-2">Days in a row</p>
               </CardContent>
             </Card>
-
             <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -178,8 +186,6 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
               </CardContent>
             </Card>
           </div>
-
-          {/* Achievements Section */}
           <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -220,13 +226,11 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
           </Card>
         </div>
 
-        {/* Current Month Quiz */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-navy-800 mb-4 flex items-center">
             <Calendar className="h-6 w-6 mr-2 text-orange-500" />
             Current Month Quiz
           </h2>
-          
           {quizzes
             .filter(quiz => quiz.isCurrent)
             .map(quiz => (
@@ -271,13 +275,11 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
             ))}
         </div>
 
-        {/* Enhanced Past Quizzes */}
         <div>
           <h2 className="text-2xl font-bold text-navy-800 mb-4 flex items-center">
             <Lock className="h-6 w-6 mr-2 text-gray-500" />
             Quiz History
           </h2>
-          
           <div className="grid md:grid-cols-2 gap-6">
             {quizzes
               .filter(quiz => !quiz.isCurrent)

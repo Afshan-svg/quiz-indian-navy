@@ -17,6 +17,8 @@ const Index = () => {
   const [currentQuizId, setCurrentQuizId] = useState<string>('');
   const [quizScore, setQuizScore] = useState<number>(0);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
+  const [totalQuestions, setTotalQuestions] = useState<number>(0);
+
   const { toast } = useToast();
 
   const handleLocationSelect = (location: string) => {
@@ -26,7 +28,7 @@ const Index = () => {
 
   const handleLogin = (credentials: { email: string; password: string }) => {
     setUserEmail(credentials.email);
-    
+
     // Check if admin
     if (credentials.email === 'admin@quiz.com' && credentials.password === 'admin123') {
       setCurrentState('admin');
@@ -48,16 +50,20 @@ const Index = () => {
     setCurrentState('quiz');
   };
 
-  const handleQuizComplete = (score: number, answers: number[]) => {
+
+  const handleQuizComplete = (score: number, answers: number[], totalQs: number) => {
     setQuizScore(score);
     setUserAnswers(answers);
+    setTotalQuestions(totalQs);
     setCurrentState('results');
-    
+    console.log("Total Questions:", totalQs, totalQuestions);
+
     toast({
       title: "Quiz Completed!",
       description: `You scored ${score}%`,
     });
   };
+
 
   const handleDownloadCertificate = () => {
     // Generate certificate (mock implementation)
@@ -67,12 +73,12 @@ const Index = () => {
       date: new Date().toLocaleDateString(),
       location: selectedLocation
     };
-    
+
     toast({
       title: "Certificate Generated",
       description: "Your certificate has been downloaded!",
     });
-    
+
     console.log('Certificate data:', certificateData);
   };
 
@@ -94,7 +100,7 @@ const Index = () => {
     setCurrentQuizId('');
     setQuizScore(0);
     setUserAnswers([]);
-    
+
     toast({
       title: "Logged Out",
       description: "Thank you for using our platform!",
@@ -105,7 +111,7 @@ const Index = () => {
     switch (currentState) {
       case 'map':
         return <IndiaMap onLocationSelect={handleLocationSelect} />;
-      
+
       case 'login':
         return (
           <LoginPage
@@ -113,7 +119,7 @@ const Index = () => {
             selectedLocation={selectedLocation}
           />
         );
-      
+
       case 'quiz-selection':
         return (
           <QuizSelection
@@ -123,7 +129,7 @@ const Index = () => {
             userEmail={userEmail}
           />
         );
-      
+
       case 'quiz':
         return (
           <QuizInterface
@@ -131,22 +137,22 @@ const Index = () => {
             onQuizComplete={handleQuizComplete}
           />
         );
-      
+
       case 'results':
         return (
           <QuizResults
             score={quizScore}
-            totalQuestions={5}
+            totalQuestions={totalQuestions}
             userAnswers={userAnswers}
             onDownloadCertificate={handleDownloadCertificate}
             onReturnHome={handleReturnHome}
             userEmail={userEmail}
           />
         );
-      
+
       case 'admin':
         return <AdminDashboard onLogout={handleLogout} />;
-      
+
       default:
         return <IndiaMap onLocationSelect={handleLocationSelect} />;
     }
