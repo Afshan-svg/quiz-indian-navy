@@ -34,7 +34,7 @@ const QuizSelection = ({ onQuizStart, onViewSolutions, selectedLocation, userEma
     queryKey: ['scores'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/quiz/scores', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/quiz/scores', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to fetch scores');

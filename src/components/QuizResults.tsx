@@ -41,7 +41,7 @@ console.log("total questions:", totalQuestions);
       const currentYear = new Date().getFullYear();
 
       const response = await fetch(
-        `http://localhost:5000/api/quiz/scores?year=${currentYear}&month=${currentMonth}&quizId=${quizId}`,
+        `https://quiz-indian-navy.onrender.com/api/quiz/scores?year=${currentYear}&month=${currentMonth}&quizId=${quizId}`,
         {
           headers: {
             'Content-Type': 'application/json',

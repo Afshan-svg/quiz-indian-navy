@@ -21,7 +21,7 @@ const IndiaMap = ({ onLocationSelect }: IndiaMapProps) => {
     const fetchLocations = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/locations');
+        const response = await fetch('https://quiz-indian-navy.onrender.com/api/locations');
         if (!response.ok) {
           throw new Error('Failed to fetch locations');
         }

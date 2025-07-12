@@ -32,7 +32,7 @@ const UserManagement = ({ allUsers, setAllUsers }: UserManagementProps) => {
 
   const handleCreateUser = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user/create-user', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/user/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser),
@@ -41,7 +41,7 @@ const UserManagement = ({ allUsers, setAllUsers }: UserManagementProps) => {
       if (!response.ok) throw new Error(data.error || 'Failed to create user');
       toast.success('User created successfully!');
       setNewUser({ email: '', password: '', role: 'user' });
-      const usersResponse = await fetch('http://localhost:5000/api/user/get-users');
+      const usersResponse = await fetch('https://quiz-indian-navy.onrender.com/api/user/get-users');
       const usersData = await usersResponse.json();
       if (usersResponse.ok) setAllUsers(usersData);
     } catch (error: any) {
@@ -58,7 +58,7 @@ const UserManagement = ({ allUsers, setAllUsers }: UserManagementProps) => {
   const handleSaveEditUser = async () => {
     if (!editUser) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/user/users/${editUser.id}`, {
+      const response = await fetch(`https://quiz-indian-navy.onrender.com/api/user/users/${editUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -72,7 +72,7 @@ const UserManagement = ({ allUsers, setAllUsers }: UserManagementProps) => {
       toast.success('User updated successfully!');
       setIsEditModalOpen(false);
       setEditUser(null);
-      const usersResponse = await fetch('http://localhost:5000/api/user/get-users');
+      const usersResponse = await fetch('https://quiz-indian-navy.onrender.com/api/user/get-users');
       const usersData = await usersResponse.json();
       if (usersResponse.ok) setAllUsers(usersData);
     } catch (error: any) {
@@ -84,7 +84,7 @@ const UserManagement = ({ allUsers, setAllUsers }: UserManagementProps) => {
   const handleDeleteUser = async () => {
     if (!deleteUserId) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/user/users/${deleteUserId}`, {
+      const response = await fetch(`https://quiz-indian-navy.onrender.com/api/user/users/${deleteUserId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -93,7 +93,7 @@ const UserManagement = ({ allUsers, setAllUsers }: UserManagementProps) => {
       toast.success('User deleted successfully!');
       setIsDeleteConfirmOpen(false);
       setDeleteUserId(null);
-      const usersResponse = await fetch('http://localhost:5000/api/user/get-users');
+      const usersResponse = await fetch('https://quiz-indian-navy.onrender.com/api/user/get-users');
       const usersData = await usersResponse.json();
       if (usersResponse.ok) setAllUsers(usersData);
     } catch (error: any) {

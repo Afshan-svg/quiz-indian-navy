@@ -35,7 +35,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const fetchLocations = async () => {
     setIsLoadingLocations(true);
     try {
-      const response = await fetch('http://localhost:5000/api/locations', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/locations', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -56,7 +56,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user/get-users', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/user/get-users', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -72,7 +72,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const fetchCategories = async () => {
     setIsLoadingCategories(true);
     try {
-      const response = await fetch('http://localhost:5000/api/categories', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/categories', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -90,7 +90,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const fetchBooks = async () => {
     setIsLoadingBooks(true);
     try {
-      const response = await fetch('http://localhost:5000/api/books', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/books', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -229,7 +229,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         return;
                       }
                       try {
-                        const response = await fetch('http://localhost:5000/api/location/create-location', {
+                        const response = await fetch('https://quiz-indian-navy.onrender.com/api/location/create-location', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(newLocation),
@@ -318,7 +318,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         return;
                       }
                       try {
-                        const response = await fetch('http://localhost:5000/api/categories', {
+                        const response = await fetch('https://quiz-indian-navy.onrender.com/api/categories', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(newCategory),
@@ -404,7 +404,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                         formData.append('title', newBook.title);
                         formData.append('categoryId', newBook.categoryId);
                         formData.append('file', newBook.file);
-                        const response = await fetch('http://localhost:5000/api/books', {
+                        const response = await fetch('https://quiz-indian-navy.onrender.com/api/books', {
                           method: 'POST',
                           body: formData,
                         });

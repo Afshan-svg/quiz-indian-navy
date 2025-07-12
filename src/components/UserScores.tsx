@@ -24,7 +24,7 @@ const UserScores = () => {
     const fetchScores = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/quiz-scores', {
+        const response = await fetch('https://quiz-indian-navy.onrender.com/api/quiz-scores', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });

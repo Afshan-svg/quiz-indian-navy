@@ -43,7 +43,7 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
     queryKey: ['locations'],
     queryFn: async () => {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/locations', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/locations', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Failed to fetch locations');
@@ -64,7 +64,7 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
       if (!locationId) return [];
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:5000/api/questions?location=${locationId}&month=${currentMonth}&year=${currentYear}`,
+        `https://quiz-indian-navy.onrender.com/api/questions?location=${locationId}&month=${currentMonth}&year=${currentYear}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -111,7 +111,7 @@ const QuizInterface = ({ quizId, onQuizComplete }: QuizInterfaceProps) => {
   const saveScore = async (score: number) => {
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch('http://localhost:5000/api/quiz/save', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/quiz/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

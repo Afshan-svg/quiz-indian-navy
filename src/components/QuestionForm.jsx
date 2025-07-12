@@ -47,7 +47,7 @@ const QuestionForm = ({ allLocations, isLoadingLocations }) => {
         year: filters.year.toString()
       });
 
-      const response = await fetch(`http://localhost:5000/api/question/questions?${queryParams}`, {
+      const response = await fetch(`https://quiz-indian-navy.onrender.com/api/question/questions?${queryParams}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -94,7 +94,7 @@ const QuestionForm = ({ allLocations, isLoadingLocations }) => {
       if (!newQuestion.location) throw new Error('Please select a location');
       if (uniqueLocations.length === 0) throw new Error('No valid locations available. Please create a location first.');
 
-      const response = await fetch('http://localhost:5000/api/question/create-question', {
+      const response = await fetch('https://quiz-indian-navy.onrender.com/api/question/create-question', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
