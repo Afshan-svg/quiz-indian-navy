@@ -14,7 +14,13 @@ require('dotenv').config();
 
 const app = express();
 
-app.use(cors({ origin: 'http://localhost:8080' }));
+app.use(cors({
+  origin: [
+    'http://localhost:8080',
+    'https://indian-navy-quiz.netlify.app'
+  ]
+}));
+
 app.use(express.json());
 app.use('/uploads', (req, res, next) => {
   console.log(`Requested file: ${req.originalUrl}`);
